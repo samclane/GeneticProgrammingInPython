@@ -5,10 +5,21 @@ import genetic
 
 
 def load_data(localFileName):
+    rules = set()
+    nodes = set()
     with open(localFileName, mode='r') as infile:
-        reader = csv.reader(infile)
-        lookup = {row[0]: row[1].split(';') for row in reader if row}
-    return lookup
+        content = infile.read().splitlines()
+    for row in content:
+        if row[0] == 'e':
+            nodeIds = row.split(' ')[1:3]
+            rules.add(Rule(nodeIds[0], nodeIds[1]))
+            nodes.add(nodeIds[0])
+            nodes.add(nodeIds[1])
+            continue
+        if row[0] == 'n':
+            nodeIds = row.split(' ')
+            nodes.add(nodeIds[1])
+    return rules, nodes
 
 
 class Rule:
@@ -57,31 +68,6 @@ def build_rules(items):
 
 
 class GraphColoringTests(unittest.TestCase):
-    def test(self):
-        states = load_data("adjacent_states.csv")
-        rules = build_rules(states)
-        optimalValue = len(rules)
-        stateIndexLookup = {key: index for index, key in enumerate(sorted(states))}
-
-        colors = ["Orange", "Yellow", "Green", "Blue"]
-        colorLookup = {color[0]: color for color in colors}
-        geneset = list(colorLookup.keys())
-
-        startTime = datetime.datetime.now()
-
-        def fnDisplay(candidate):
-            display(candidate, startTime)
-
-        def fnGetFitness(genes):
-            return get_fitness(genes, rules, stateIndexLookup)
-
-        best = genetic.get_best(fnGetFitness, len(states), optimalValue, geneset, fnDisplay)
-        self.assertTrue(not optimalValue > best.Fitness)
-
-        keys = sorted(states.keys())
-        for index in range(len(states)):
-            print(keys[index] + " is " + colorLookup[best.Genes[index]])
-
     @staticmethod
     def test_convert_file():
         states = load_data("adjacent_states.csv")
@@ -95,10 +81,38 @@ class GraphColoringTests(unittest.TestCase):
                 else:
                     output.append("e {0} {1}".format(state, adjacent))
                     edgeCount += 1
-        with open('./adjacent_states.col', mode='w+') as outfile:
+        with open('./adjacent_states.csv', mode='w+') as outfile:
             print("p edge {0} {1}".format(nodeCount, edgeCount), file=outfile)
             for line in sorted(output):
                 print(line, file=output)
+
+    def test_states(self):
+        self.color("adjacent_states.csv", ["Orange", "Yellow", "Green", "Blue"])
+
+    def color(self, file, colors):
+        rules, nodes = load_data(file)
+        optimalValue = len(rules)
+        colorLookup = {color[0]: color for color in colors}
+        geneset = list(colorLookup.keys())
+        startTime = datetime.datetime.now()
+        nodeIndexLookup = {key: index for index, key in enumerate(sorted(nodes))}
+
+        def fnDisplay(candidate):
+            display(candidate, startTime)
+
+        def fnGetFitness(genes):
+            return get_fitness(genes, rules, nodeIndexLookup)
+
+        best = genetic.get_best(fnGetFitness, len(nodes), optimalValue, geneset, fnDisplay)
+        self.assertTrue(not optimalValue > best.Fitness)
+
+        keys = sorted(nodes)
+        for index in range(len(nodes)):
+            print(keys[index] + " is " + colorLookup[best.Genes[index]])
+
+    def test_benchmark(self):
+        genetic.Benchmark.run(lambda: self.test_states)
+
 
 
 def display(candidate, startTime):
