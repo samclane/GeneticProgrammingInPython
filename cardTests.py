@@ -65,7 +65,7 @@ def mutate(genes, geneset):  # bookmark - engineer a solution
     else:
         indexA = random.randrange(0, len(genes))
         indexB = random.randrange(0, len(geneset))
-        genes[indexA] = geneset[indexB]
+        genes[indexA] = genset[indexB]
 
 
 def display(candidate, startTime):
