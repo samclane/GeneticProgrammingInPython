@@ -57,12 +57,15 @@ def get_fitness(genes):
 
 def mutate(genes, geneset):  # bookmark - engineer a solution
     if len(genes) == len(set(genes)):
-        indexA, indexB = random.sample(range(len(genes)), 2)
-        genes[indexA], genes[indexB] = genes[indexB], genes[indexA]
+        count = random.randint(1, 4)
+        while count > 0:
+            count -= 1
+            indexA, indexB = random.sample(range(len(genes)), 2)
+            genes[indexA], genes[indexB] = genes[indexB], genes[indexA]
     else:
         indexA = random.randrange(0, len(genes))
         indexB = random.randrange(0, len(geneset))
-        genes[indexA] = geneset[indexB]
+        genes[indexA] = genset[indexB]
 
 
 def display(candidate, startTime):
