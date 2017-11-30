@@ -24,6 +24,9 @@ class CardTests(unittest.TestCase):
         best = genetic.get_best(fnGetFitness, 10, optimalFitness, geneset, fnDisplay, custom_mutate=fnMutate)
         self.assertTrue(not optimalFitness > best.Fitness)
 
+    def test_benchmark(self):
+        genetic.Benchmark.run(lambda: self.test())
+
 
 class Fitness:
     Group1Sum = None
