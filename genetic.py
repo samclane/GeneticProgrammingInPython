@@ -2,9 +2,15 @@ import random
 import statistics
 import time
 import sys
+from bisect import bisect_left
+from math import exp
 
 
 class Chromosome:
+    Genes = None
+    Fitness = None
+    Age = 0
+
     def __init__(self, genes, fitness):
         self.Genes = genes
         self.Fitness = fitness
@@ -35,7 +41,7 @@ def _generate_parent(length, geneSet, get_fitness):
     return Chromosome(genes, fitness)
 
 
-def _get_improvement(new_child, generate_parent):
+def _get_improvement(new_child, generate_parent):  # bookmark
     bestParent = generate_parent()
     yield bestParent
     while True:
@@ -49,7 +55,8 @@ def _get_improvement(new_child, generate_parent):
         bestParent = child
 
 
-def get_best(get_fitness, targetLen, optimalFitness, geneSet, display, custom_mutate=None, custom_create=None):
+def get_best(get_fitness, targetLen, optimalFitness, geneSet, display, custom_mutate=None, custom_create=None,
+             maxAge=None):
     random.seed()
 
     if custom_mutate is None:
@@ -67,7 +74,7 @@ def get_best(get_fitness, targetLen, optimalFitness, geneSet, display, custom_mu
             genes = custom_create()
             return Chromosome(genes, get_fitness(genes))
 
-    for improvement in _get_improvement(fnMutate, fnGenerateParent):
+    for improvement in _get_improvement(fnMutate, fnGenerateParent, maxAge):
         display(improvement)
         if not optimalFitness > improvement.Fitness:
             return improvement

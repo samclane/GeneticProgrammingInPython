@@ -1,13 +1,27 @@
 import unittest
 import datetime
 import genetic
+import random
+
+
+class Fitness:
+    SumOfDifferences = None
+
+    def __init__(self, sumOfDifferences):
+        self.SumOfDifferences = sumOfDifferences
+
+    def __gt__(self, other):
+        return self.SumOfDifferences < other.SumOfDifferences
+
+    def __str__(self):
+        return "{0}".format(self.SumOfDifferences)
 
 
 class MagicSquareTests(unittest.TestCase):
     def test_size_3(self):
         self.generate(3)
 
-    def geneerate(self, diagonalSize):
+    def generate(self, diagonalSize):
         nSquared = diagonalSize * diagonalSize
         geneset = [i for i in range(1, nSquared + 1)]
         expectedSum = diagonalSize * (nSquared + 1) / 2
@@ -15,13 +29,31 @@ class MagicSquareTests(unittest.TestCase):
         def fnGetFitness(genes):
             return get_fitness(genes, diagonalSize, expectedSum)
 
+        def fnDisplay(candidate):
+            display(candidate, diagonalSize, startTime)
+
+        geneIndexes = [i for i in range(0, len(geneset))]
+
+        def fnMutate(genes):
+            mutate(genes, geneIndexes)
+
+        def fnCustomCreate():
+            return random.sample(geneset, len(geneset))
+
+        optimalValue = Fitness(0)
+        startTime = datetime.datetime.now()
+        best = genetic.get_best(fnGetFitness, nSquared, optimalValue, geneset, fnDisplay, fnMutate, fnCustomCreate)
+        self.assertTrue(not optimalValue > best.Fitness)
+
 
 def get_fitness(genes, diagonalSize, expectedSum):
     rows, columns, northeastDiagonalSum, southeastDiagonalSum = get_sums(genes, diagonalSize)
 
-    fitness = sum(1 for s in rows + columns + [southeastDiagonalSum, northeastDiagonalSum] if s == expectedSum)
+    sumOfDifferences = sum(
+        int(abs(s - expectedSum)) for s in rows + columns + [southeastDiagonalSum, northeastDiagonalSum] if
+        s != expectedSum)
 
-    return fitness
+    return Fitness(sumOfDifferences)
 
 
 def get_sums(genes, diagonalSize):
@@ -38,3 +70,18 @@ def get_sums(genes, diagonalSize):
         northeastDiagonalSum += genes[row * diagonalSize + (diagonalSize - 1 - row)]
 
     return rows, columns, northeastDiagonalSum, southeastDiagonalSum
+
+
+def display(candidate, diagonalSize, startTime):
+    timeDiff = datetime.datetime.now() - startTime
+    rows, columns, northeastDiagonalSum, southeastDiagonalSum = get_sums(candidate.Genes, diagonalSize)
+    for rowNumber in range(diagonalSize):
+        row = candidate.Genes[rowNumber * diagonalSize:(rowNumber + 1) * diagonalSize]
+        print("\t ", row, "=", rows[rowNumber])
+    print(northeastDiagonalSum, "\t", columns, "\t", southeastDiagonalSum)
+    print(" - - - - - - - - - - -", candidate.Fitness, str(timeDiff))
+
+
+def mutate(genes, indexes):
+    indexA, indexB = random.sample(indexes, 2)
+    genes[indexA], genes[indexB] = genes[indexB], genes[indexA]
