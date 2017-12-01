@@ -19,9 +19,21 @@ class Fitness:
 
 class MagicSquareTests(unittest.TestCase):
     def test_size_3(self):
-        self.generate(3)
+        self.generate(3, 50)
 
-    def generate(self, diagonalSize):
+    def test_size_5(self):
+        self.generate(5, 500)
+
+    def test_size_10(self):
+        self.generate(10, 5000)
+
+    def test_size_4(self):
+        self.generate(4, 50)
+
+    def test_benchmark(self):
+        genetic.Benchmark.run(self.test_size_4)
+
+    def generate(self, diagonalSize, maxAge):
         nSquared = diagonalSize * diagonalSize
         geneset = [i for i in range(1, nSquared + 1)]
         expectedSum = diagonalSize * (nSquared + 1) / 2
@@ -42,7 +54,8 @@ class MagicSquareTests(unittest.TestCase):
 
         optimalValue = Fitness(0)
         startTime = datetime.datetime.now()
-        best = genetic.get_best(fnGetFitness, nSquared, optimalValue, geneset, fnDisplay, fnMutate, fnCustomCreate)
+        best = genetic.get_best(fnGetFitness, nSquared, optimalValue, geneset, fnDisplay, fnMutate, fnCustomCreate,
+                                maxAge)
         self.assertTrue(not optimalValue > best.Fitness)
 
 

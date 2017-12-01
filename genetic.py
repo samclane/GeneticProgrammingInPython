@@ -41,18 +41,39 @@ def _generate_parent(length, geneSet, get_fitness):
     return Chromosome(genes, fitness)
 
 
-def _get_improvement(new_child, generate_parent):  # bookmark
-    bestParent = generate_parent()
+def _get_improvement(new_child, generate_parent, maxAge):
+    parent = bestParent = generate_parent()
     yield bestParent
+    historicalFitness = [bestParent.Fitness]
     while True:
-        child = new_child(bestParent)
-        if bestParent.Fitness > child.Fitness:
+        child = new_child(parent)
+        if parent.Fitness > child.Fitness:
+            if maxAge is None:
+                continue
+            parent.Age += 1
+            if maxAge > parent.Age:
+                continue
+            index = bisect_left(historicalFitness, child.Fitness, 0, len(historicalFitness))
+            difference = len(historicalFitness) - index
+            proportionSimilar = difference / len(historicalFitness)
+            if random.random() < exp(-proportionSimilar):
+                parent = child
+                continue
+            parent = bestParent
+            parent.Age = 0
             continue
-        if not child.Fitness > bestParent.Fitness:
+        if not child.Fitness > parent.Fitness:
+            child.Age = parent.Age + 1
+            parent = child
+            continue
+        parent = child
+        parent.Age = 0
+        if child.Fitness > bestParent.Fitness:
+            yield child
             bestParent = child
-            continue
-        yield child
-        bestParent = child
+            historicalFitness.append(child.Fitness)
+
+
 
 
 def get_best(get_fitness, targetLen, optimalFitness, geneSet, display, custom_mutate=None, custom_create=None,
