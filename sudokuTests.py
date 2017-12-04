@@ -7,7 +7,6 @@ import random
 class SudokuTests(unittest.TestCase):
     def test(self):
         geneset = [i for i in range(1, 9 + 1)]
-        geneIndexes = [i for i in range(0, 81)]
         startTime = datetime.datetime.now()
         optimalValue = 100
         validationRules = build_validation_rules()
