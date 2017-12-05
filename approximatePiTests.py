@@ -3,12 +3,12 @@ import datetime
 import genetic
 import math
 import random
-
+import time
+import sys
 
 class ApproximatePiTests(unittest.TestCase):
-    def test(self):
+    def test(self, bitValues=[512, 256, 128, 64, 32, 16, 8, 4, 2, 1], maxSeconds=None):
         geneset = [i for i in range(2)]
-        bitValues = [512, 512, 256, 256, 128, 128, 64, 64, 32, 32, 16, 16, 8, 8, 4, 4, 2, 2, 1, 1]
         startTime = datetime.datetime.now()
 
         def fnDisplay(candidate):
@@ -22,8 +22,9 @@ class ApproximatePiTests(unittest.TestCase):
 
         length = 2 * len(bitValues)
         optimalFitness = 3.14159
-        best = genetic.get_best(fnGetFitness, length, optimalFitness, geneset, fnDisplay, fnMutate, maxAge=250)
-        self.assertTrue(not optimalFitness > best.Fitness)
+        best = genetic.get_best(fnGetFitness, length, optimalFitness, geneset, fnDisplay, fnMutate, maxAge=250,
+                                maxSeconds=maxSeconds)
+        return best.Fitness >= optimalFitness
 
     def test_find_top_10_approximations(self):
         best = {}
@@ -40,6 +41,35 @@ class ApproximatePiTests(unittest.TestCase):
             nd = best[ratio]
             print("%i / %i\t%f" % (nd[0], nd[1], ratio))
 
+    def test_optimize(self):
+        geneset = [i for i in range(1, 512 + 1)]
+        length = 10
+        maxSeconds = 2
+
+        def fnGetFitness(genes):
+            startTime = time.time()
+            count = 0
+            stdout = sys.stdout
+            sys.stdout = None
+            while time.time() - startTime < maxSeconds:
+                if self.test(genes, maxSeconds):
+                    count += 1
+            sys.stdout = stdout
+            distance = abs(sum(genes) - 1023)
+            fraction = 1 / distance if distance > 0 else distance
+            count += round(fraction, 4)
+            return count
+
+        def fnDisplay(chromosome):
+            print("{0}\t{1}".format(chromosome.Genes, chromosome.Fitness))
+
+        initial = [512, 256, 128, 64, 32, 16, 8, 4, 2, 1]
+        print("initial:", initial, fnGetFitness(initial))
+        optimalFitness = 10 * maxSeconds
+        genetic.get_best(fnGetFitness, length, optimalFitness, geneset, fnDisplay, maxSeconds=600)
+
+    def test_benchmark(self):
+        genetic.Benchmark.run(lambda: self.test([45, 26, 289, 407, 70, 82, 45, 240, 412, 260]))
 
 def bits_to_int(bits, bitValues):
     result = 0
