@@ -4,16 +4,24 @@ import time
 import sys
 from bisect import bisect_left
 from math import exp
-
+from enum import Enum
 
 class Chromosome:
     Genes = None
     Fitness = None
     Age = 0
+    Strategy = None
 
-    def __init__(self, genes, fitness):
+    def __init__(self, genes, fitness, strategy):
         self.Genes = genes
         self.Fitness = fitness
+        self.Strategy = strategy
+
+
+class Strategies(Enum):
+    Create = 0
+    Mutate = 1
+    Crossover = 2
 
 
 def _mutate(parent, geneSet, get_fitness):
@@ -22,14 +30,14 @@ def _mutate(parent, geneSet, get_fitness):
     newGene, alternate = random.sample(geneSet, 2)
     childGenes[index] = alternate if newGene == childGenes[index] else newGene
     fitness = get_fitness(childGenes)
-    return Chromosome(childGenes, fitness)
+    return Chromosome(childGenes, fitness, Strategies.Mutate)
 
 
 def _mutate_custom(parent, custom_mutate, get_fitness):
     childGenes = parent.Genes[:]
     custom_mutate(childGenes)
     fitness = get_fitness(childGenes)
-    return Chromosome(childGenes, fitness)
+    return Chromosome(childGenes, fitness, Strategies.Mutate)
 
 
 def _generate_parent(length, geneSet, get_fitness):
@@ -38,15 +46,27 @@ def _generate_parent(length, geneSet, get_fitness):
         sampleSize = min(length - len(genes), len(geneSet))
         genes.extend(random.sample(geneSet, sampleSize))
     fitness = get_fitness(genes)
-    return Chromosome(genes, fitness)
+    return Chromosome(genes, fitness, Strategies.Create)
 
 
-def _get_improvement(new_child, generate_parent, maxAge):
+def _get_improvement(new_child, generate_parent, maxAge, poolSize):
     parent = bestParent = generate_parent()
     yield bestParent
+    parents = [bestParent]
     historicalFitness = [bestParent.Fitness]
+    for _ in range(poolSize - 1):
+        parent = generate_parent()
+        if parent.Fitness > bestParent.Fitness:
+            yield parent
+            bestParent = parent
+            historicalFitness.append(parent.Fitness)
+        parents.append(parent)
+    lastParentIndex = poolSize - 1
+    pindex = 1
     while True:
-        child = new_child(parent)
+        pindex = pindex - 1 if pindex > 0 else lastParentIndex
+        parent = parents[pindex]
+        child = new_child(parent, pindex, parents)
         if parent.Fitness > child.Fitness:
             if maxAge is None:
                 continue
@@ -57,16 +77,16 @@ def _get_improvement(new_child, generate_parent, maxAge):
             difference = len(historicalFitness) - index
             proportionSimilar = difference / len(historicalFitness)
             if random.random() < exp(-proportionSimilar):
-                parent = child
+                parents[pindex] = child
                 continue
-            parent = bestParent
+            parents[pindex] = bestParent
             parent.Age = 0
             continue
         if not child.Fitness > parent.Fitness:
             child.Age = parent.Age + 1
-            parent = child
+            parents[pindex] = child
             continue
-        parent = child
+        parents[pindex] = child
         parent.Age = 0
         if child.Fitness > bestParent.Fitness:
             yield child
@@ -77,7 +97,7 @@ def _get_improvement(new_child, generate_parent, maxAge):
 
 
 def get_best(get_fitness, targetLen, optimalFitness, geneSet, display, custom_mutate=None, custom_create=None,
-             maxAge=None):
+             maxAge=None, poolSize=1, crossover=None):
     random.seed()
 
     if custom_mutate is None:
@@ -93,13 +113,42 @@ def get_best(get_fitness, targetLen, optimalFitness, geneSet, display, custom_mu
     else:
         def fnGenerateParent():
             genes = custom_create()
-            return Chromosome(genes, get_fitness(genes))
+            return Chromosome(genes, get_fitness(genes), Strategies.Create)
 
-    for improvement in _get_improvement(fnMutate, fnGenerateParent, maxAge):
+    strategyLookup = {
+        Strategies.Create: lambda p, i, o: fnGenerateParent(),
+        Strategies.Mutate: lambda p, i, o: fnMutate(p),
+        Strategies.Crossover: lambda p, i, o: _crossover(p.Genes, i, o, get_fitness, crossover, fnMutate,
+                                                         fnGenerateParent)
+    }
+    usedStrategies = [strategyLookup[Strategies.Mutate]]
+    if crossover is not None:
+        usedStrategies.append(strategyLookup[Strategies.Crossover])
+
+        def fnNewChild(parent, index, parents):
+            return random.choice(usedStrategies)(parent, index, parents)
+    else:
+        def fnNewChild(parent, index, parents):
+            return fnMutate(parent)
+
+    for improvement in _get_improvement(fnNewChild, fnGenerateParent, maxAge, poolSize):
         display(improvement)
+        f = strategyLookup[improvement.Strategy]
+        usedStrategies.append(f)
         if not optimalFitness > improvement.Fitness:
             return improvement
 
+
+def _crossover(parentGenes, index, parents, get_fitness, crossover, mutate, generate_parent):
+    donorIndex = random.randrange(0, len(parents))
+    if donorIndex == index:
+        donorIndex = (donorIndex + 1) % len(parents)
+    childGenes = crossover(parentGenes, parents[donorIndex].Genes)
+    if childGenes is None:
+        parents[donorIndex] = generate_parent()
+        return mutate(parents[index])
+    fitness = get_fitness(childGenes)
+    return Chromosome(childGenes, fitness, Strategies.Crossover)
 
 class Benchmark:
     @staticmethod
