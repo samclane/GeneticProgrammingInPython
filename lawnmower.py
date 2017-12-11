@@ -42,7 +42,7 @@ class Directions(Enum):
     def get_direction_after_turn_right_90_degrees(direction):
         newIndex = direction.Index + 1 if direction.Index < len(Directions) - 1 else 0
         newDirection = next(i for i in Directions if i.value.Index == newIndex)
-        return newDirection.value  # bookmark
+        return newDirection.value
 
 
 class Mower:
@@ -60,14 +60,23 @@ class Mower:
 
     def mow(self, field):
         newLocation = self.Direction.move_from(self.Location)
-        self.Location = field.fix_location(newLocation)
-        self.StepCount += 1
-        field.set(self.Location, self.StepCount if self.StepCount > 9 else " {0}".format(self.StepCount))
+        newLocation, isValid = field.fix_location(newLocation)
+        if isValid:
+            self.Location = newLocation
+            self.StepCount += 1
+            field.set(self.Location, self.StepCount if self.StepCount > 9 else " {0}".format(self.StepCount))
 
     def jump(self, field, forward, right):
         newForwardLocation = self.Direction.move_from(self.Location, forward)
         rightDirection = Directions.get_direction_after_turn_right_90_degrees(self.Direction)
         newLocation = rightDirection.move_from(newForwardLocation, right)
+        newLocation, isValid = field.fix_location(newLocation)
+        if isValid:
+            self.Location = newLocation
+            self.StepCount += 1
+            field.set(self.Location, self.StepCount if self.StepCount > 9 else " {0}".format(self.StepCount))
+
+
         self.Location = field.fix_location(newLocation)
         self.StepCount += 1
         field.set(self.Location, self.StepCount if self.StepCount > 9 else " {0}".format(self.StepCount))
@@ -124,3 +133,33 @@ class Field:
                 r[mower.Location.X] = "{0}{1}".format(FieldContents.Mower, mower.Direction.Symbol)
                 row = ' '.join(map(str, r))
             print(row)
+
+
+class ValidatingField(Field):
+    def __init__(self, width, height, initialContent):
+        super().__init__(width, height, initialContent)
+
+    def fix_location(self, location):
+        if location.X >= self.Width or location.X < 0 or location.Y >= self.Height or location.Y < 0:
+            return None, False
+        return location, True
+
+
+class ToroidField(Field):
+    def __init__(self, width, height, initialContent):
+        super().__init__(width, height, initialContent)
+
+    def fix_location(self, location):
+        newLocation = Location(location.X, location.Y)
+
+        if newLocation.X < 0:
+            newLocation.X += self.Width
+        elif newLocation.X >= self.Width:
+            newLocation.X %= self.Width
+
+        if newLocation.Y < 0:
+            newLocation.Y += self.Height
+        elif newLocation.Y >= self.Height:
+            newLocation.Y %= self.Height
+
+        return newLocation, True

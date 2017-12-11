@@ -5,6 +5,8 @@ import genetic
 import lawnmower
 
 
+# Bookmark: 213
+
 class Mow:
     def __init__(self):
         pass
@@ -60,22 +62,46 @@ class Program:
 
 def create(geneSet, minGenes, maxGenes):
     numGenes = random.randint(minGenes, maxGenes)
-    genes = [random.choice(geneSet) for _ in range(1, numGenes)]
+    genes = [random.choice(geneSet)() for _ in range(1, numGenes)]
     return genes
 
 
 class LawnmowerTests(unittest.TestCase):
-    def test(self):
-        geneSet = [Mow(), Turn()]
+    def test_mow_turn(self):
         width = height = 8
-        mowerStartLocation = lawnmower.Location(int(width / 2), int(height / 2))
-        mowerStartDirection = lawnmower.Directions.South.value
-        startTime = datetime.datetime.now()
+        geneSet = [lambda: Mow(), lambda: Turn()]
         minGenes = width * height
         maxGenes = int(1.5 * minGenes)
         maxMutationRounds = 3
         expectedNumberOfInstructions = 78
+
+        def fnCreateField():
+            return lawnmower.ToroidField(width, height, lawnmower.FieldContents.Grass)
+
+        self.run_with(geneSet, width, height, minGenes, maxGenes, expectedNumberOfInstructions, maxMutationRounds,
+                      fnCreateField)
+
+    def test_mow_turn_jump(self):
+        width = height = 8
+        geneSet = [lambda: Mow(), lambda: Turn(),
+                   lambda: Jump(random.randint(0, min(width, height)), random.randint(0, min(width, height)))]
+        minGenes = width * height
+        maxGenes = int(1.5 * minGenes)
+        maxMutationRounds = 1
+        expectedNumberOfInstructions = 64
+
+        def fnCreateField():
+            return lawnmower.ToroidField(width, height, lawnmower.FieldContents.Grass)
+
+        self.run_with(geneSet, width, height, minGenes, maxGenes, expectedNumberOfInstructions, maxMutationRounds,
+                      fnCreateField)
+
+    def run_with(self, geneSet, width, height, minGenes, maxGenes, expectedNumberOfInstructions, maxMutationRounds,
+                 fnCreateField):
+        mowerStartLocation = lawnmower.Location(int(width / 2), int(height / 2))
+        mowerStartDirection = lawnmower.Directions.South.value
         optimalFitness = Fitness(width * height, expectedNumberOfInstructions)
+        startTime = datetime.datetime.now()
 
         def fnCreate():
             return create(geneSet, 1, height)
@@ -83,7 +109,7 @@ class LawnmowerTests(unittest.TestCase):
         def fnEvaluate(instructions):
             program = Program(instructions)
             mower = lawnmower.Mower(mowerStartLocation, mowerStartDirection)
-            field = lawnmower.Field(width, height, lawnmower.FieldContents.Grass)
+            field = fnCreateField()
             program.evaluate(mower, field)
             return field, mower, program
 
@@ -140,7 +166,7 @@ def mutate(genes, geneSet, minGenes, maxGenes, fnGetFitness, maxRounds):
             return
         adding = len(genes) == 0 or (len(genes) < maxGenes and random.randint(0, 5) == 0)
         if adding:
-            genes.append(random.choice(geneSet))
+            genes.append(random.choice(geneSet)())
             continue
 
         removing = len(genes) > minGenes and random.randint(0, 50) == 0
@@ -150,7 +176,7 @@ def mutate(genes, geneSet, minGenes, maxGenes, fnGetFitness, maxRounds):
             continue
 
         index = random.randrange(0, len(genes))
-        genes[index] = random.choice(geneSet)
+        genes[index] = random.choice(geneSet)()
 
 
 def crossover(parent, otherParent):
