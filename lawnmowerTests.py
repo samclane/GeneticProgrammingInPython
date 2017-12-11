@@ -29,6 +29,21 @@ class Turn:
         return "turn"
 
 
+class Jump:
+    Forward = None
+    Right = None
+
+    def __init__(self, forward, right):
+        self.Forward = forward
+        self.Right = right
+
+    def execute(self, mower, field):
+        mower.jump(field, self.Forward, self.Right)
+
+    def __str__(self):
+        return "jump({0},{1})".format(self.Forward, self.Right)
+
+
 class Program:
     Main = None
 
